@@ -19,59 +19,52 @@
  */
 package net.minecraftforge.gradle.common;
 
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Resources;
+import net.minecraftforge.gradle.util.GradleConfigurationException;
+import net.minecraftforge.gradle.util.delayed.ReplacementProvider;
+import org.gradle.api.Project;
+
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.gradle.api.Project;
-
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Resources;
-
-import gnu.trove.TIntObjectHashMap;
-import net.minecraftforge.gradle.util.GradleConfigurationException;
-import net.minecraftforge.gradle.util.delayed.ReplacementProvider;
-
-public abstract class BaseExtension
-{
+public abstract class BaseExtension {
     protected static final transient Map<String, String> MCP_VERSION_MAP = ImmutableMap.of("1.8", "9.10");
 
     public final String forgeGradleVersion;
 
-    protected transient Project             project;
+    protected transient Project project;
     protected transient ReplacementProvider replacer;
-    protected String                        version;
-    protected String                        mcpVersion = "unknown";
+    protected String version;
+    protected String mcpVersion = "unknown";
 
     // this should never be touched except by the base plugin in this package
-    Map<String, Map<String, int[]>>        mcpJson;
-    protected boolean                      mappingsSet     = false;
-    protected String                       mappingsChannel = null;
-    protected int                          mappingsVersion = -1;
+    Map<String, Map<String, int[]>> mcpJson;
+    protected boolean mappingsSet = false;
+    protected String mappingsChannel = null;
+    protected int mappingsVersion = -1;
     // custom version for custom mappings
-    protected String                mappingsCustom  = null;
+    protected String mappingsCustom = null;
 
-    public BaseExtension(BasePlugin<? extends BaseExtension> plugin)
-    {
+    protected boolean gitVersion = true;
+
+    public BaseExtension(BasePlugin<? extends BaseExtension> plugin) {
         this.project = plugin.project;
         this.replacer = plugin.replacer;
 
         String version;
-        try
-        {
+        try {
             URL url = BaseExtension.class.getClassLoader().getResource("forgegradle.version.txt");
             version = Resources.toString(url, Constants.CHARSET).trim();
 
-            if (version.equals("${version}"))
-            {
+            if (version.equals("${version}")) {
                 version = "2.1-SNAPSHOT";// fallback
             }
 
-        }
-        catch (Exception e)
-        {
+        } catch (Exception e) {
             // again, the fallback
             version = "2.0-SNAPSHOT";
         }
@@ -84,8 +77,7 @@ public abstract class BaseExtension
      *
      * @return The Minecraft version
      */
-    public String getVersion()
-    {
+    public String getVersion() {
         return version;
     }
 
@@ -94,8 +86,7 @@ public abstract class BaseExtension
      *
      * @param version The Minecraft version
      */
-    public void setVersion(String version)
-    {
+    public void setVersion(String version) {
         this.version = version;
 
         replacer.putReplacement(Constants.REPLACE_MC_VERSION, version);
@@ -107,29 +98,42 @@ public abstract class BaseExtension
     }
 
     /**
+     * Enables/Disables the option to use GitVersion in the "ProjectVersion.java" class
+     *
+     * @param gitVersion boolean
+     */
+    public void setGitVersion(boolean gitVersion) {
+        this.gitVersion = gitVersion;
+    }
+
+    /**
+     * Returns the value of if gitVersion is enabled or disabled
+     *
+     * @return Whether gitVersion is enabled/disabled.
+     */
+    public boolean isGitVersion() {
+        return gitVersion;
+    }
+
+    /**
      * Get the MCP data version
      *
      * @return The MCP data version
      */
-    public String getMcpVersion()
-    {
+    public String getMcpVersion() {
         return mcpVersion == null ? "unknown" : mcpVersion;
     }
 
-    public void setMcpVersion(String mcpVersion)
-    {
+    public void setMcpVersion(String mcpVersion) {
         this.mcpVersion = mcpVersion;
     }
 
-    public void copyFrom(BaseExtension ext)
-    {
-        if ("null".equals(version))
-        {
+    public void copyFrom(BaseExtension ext) {
+        if ("null".equals(version)) {
             setVersion(ext.getVersion());
         }
 
-        if ("unknown".equals(mcpVersion))
-        {
+        if ("unknown".equals(mcpVersion)) {
             setMcpVersion(ext.getMcpVersion());
         }
     }
@@ -139,11 +143,9 @@ public abstract class BaseExtension
      * Examples: {@code stable_17, snapshot_20151113}
      *
      * @return The channel and version in format: {@code channel_version}.
-     *
      * @see <a href="http://export.mcpbot.bspk.rs/">http://export.mcpbot.bspk.rs/</a>
      */
-    public String getMappings()
-    {
+    public String getMappings() {
         return mappingsChannel + "_" + (mappingsCustom == null ? mappingsVersion : mappingsCustom);
     }
 
@@ -151,11 +153,9 @@ public abstract class BaseExtension
      * Get the MCP mappings channel
      *
      * @return The channel
-     *
      * @see <a href="http://export.mcpbot.bspk.rs/">http://export.mcpbot.bspk.rs/</a>
      */
-    public String getMappingsChannel()
-    {
+    public String getMappingsChannel() {
         return mappingsChannel;
     }
 
@@ -164,8 +164,7 @@ public abstract class BaseExtension
      *
      * @return The channel without subtype
      */
-    public String getMappingsChannelNoSubtype()
-    {
+    public String getMappingsChannelNoSubtype() {
         int underscore = mappingsChannel.indexOf('_');
         if (underscore <= 0) // already has docs.
             return mappingsChannel;
@@ -177,11 +176,9 @@ public abstract class BaseExtension
      * Get the MCP mappings version
      *
      * @return The version
-     *
      * @see <a href="http://export.mcpbot.bspk.rs/">http://export.mcpbot.bspk.rs/</a>
      */
-    public String getMappingsVersion()
-    {
+    public String getMappingsVersion() {
         return mappingsCustom == null ? "" + mappingsVersion : mappingsCustom;
     }
 
@@ -191,17 +188,14 @@ public abstract class BaseExtension
      * Examples: {@code stable_17, snapshot_20151113}
      *
      * @param mappings The channel and version
-     *
      * @see <a href="http://export.mcpbot.bspk.rs/">http://export.mcpbot.bspk.rs/</a>
      */
-    public void setMappings(String mappings)
-    {
-        if (Strings.isNullOrEmpty(mappings))
-        {
+    public void setMappings(String mappings) {
+        if (Strings.isNullOrEmpty(mappings)) {
             mappingsChannel = null;
             mappingsVersion = -1;
 
-            replacer.putReplacement(Constants.REPLACE_MCP_CHANNEL, mappingsChannel);
+            replacer.putReplacement(Constants.REPLACE_MCP_CHANNEL, null);
             replacer.putReplacement(Constants.REPLACE_MCP_VERSION, getMappingsVersion());
 
             return;
@@ -209,8 +203,7 @@ public abstract class BaseExtension
 
         mappings = mappings.toLowerCase();
 
-        if (!mappings.contains("_"))
-        {
+        if (!mappings.contains("_")) {
             throw new IllegalArgumentException("Mappings must be in format 'channel_version' or 'custom_something'. eg: snapshot_20140910 custom_AbrarIsCool");
         }
 
@@ -218,15 +211,11 @@ public abstract class BaseExtension
         mappingsChannel = mappings.substring(0, index);
         mappingsCustom = mappings.substring(index + 1);
 
-        if (!mappingsCustom.equals("custom"))
-        {
-            try
-            {
+        if (!mappingsCustom.equals("custom")) {
+            try {
                 mappingsVersion = Integer.parseInt(mappingsCustom);
                 mappingsCustom = null;
-            }
-            catch (NumberFormatException e)
-            {
+            } catch (NumberFormatException e) {
                 throw new GradleConfigurationException("The mappings version must be a number! eg: channel_### or channel_custom (for custom mappings).");
             }
         }
@@ -244,8 +233,7 @@ public abstract class BaseExtension
      * Checks that the set mappings are valid based on the channel, version, and MC version.
      * If the mappings are invalid, this method will throw a runtime exception.
      */
-    protected void checkMappings()
-    {
+    protected void checkMappings() {
         // mappings or mc version are null
         if (mappingsChannel == null || Strings.isNullOrEmpty(version))
             return;
@@ -272,19 +260,15 @@ public abstract class BaseExtension
             return;
 
         // if it gets here.. it wasnt found. Now we try to actually find it..
-        for (Entry<String, Map<String, int[]>> mcEntry : mcpJson.entrySet())
-        {
-            for (Entry<String, int[]> channelEntry : mcEntry.getValue().entrySet())
-            {
+        for (Entry<String, Map<String, int[]>> mcEntry : mcpJson.entrySet()) {
+            for (Entry<String, int[]> channelEntry : mcEntry.getValue().entrySet()) {
                 // found it!
-                if (searchArray(channelEntry.getValue(), mappingsVersion))
-                {
+                if (searchArray(channelEntry.getValue(), mappingsVersion)) {
                     boolean rightMc = mcEntry.getKey().equals(version);
                     boolean rightChannel = channelEntry.getKey().equals(channel);
 
                     // right channel, but wrong mc
-                    if (rightChannel && !rightMc)
-                    {
+                    if (rightChannel && !rightMc) {
                         project.getLogger().warn("This mapping '" + getMappings() + "' was designed for MC " + mcEntry.getKey() + "! Use at your own peril.");
                         replacer.putReplacement(Constants.REPLACE_MCP_MCVERSION, mcEntry.getKey()); // set MC version
                         return;
@@ -292,8 +276,7 @@ public abstract class BaseExtension
                     }
 
                     // right MC , but wrong channel
-                    else if (rightMc && !rightChannel)
-                    {
+                    else if (rightMc && !rightChannel) {
                         throw new GradleConfigurationException("This mapping '" + getMappings() + "' doesnt exist! perhaps you meant '" + channelEntry.getKey() + "_" + mappingsVersion + "'");
                     }
                 }
@@ -304,8 +287,7 @@ public abstract class BaseExtension
         throw new GradleConfigurationException("The specified mapping '" + getMappings() + "' does not exist!");
     }
 
-    private static boolean searchArray(int[] array, int key)
-    {
+    private static boolean searchArray(int[] array, int key) {
         Arrays.sort(array);
         int foundIndex = Arrays.binarySearch(array, key);
         return foundIndex >= 0 && array[foundIndex] == key;

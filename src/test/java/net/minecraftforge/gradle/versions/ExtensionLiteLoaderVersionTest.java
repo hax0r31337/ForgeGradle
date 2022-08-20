@@ -30,14 +30,12 @@ import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.Before;
 import org.junit.Test;
 
-public class ExtensionLiteLoaderVersionTest
-{
-    private Project             testProject;
+public class ExtensionLiteLoaderVersionTest {
+    private Project testProject;
     private LiteloaderExtension ext;
 
     @Before
-    public void setupProject()
-    {
+    public void setupProject() {
         this.testProject = ProjectBuilder.builder().build();
         assertNotNull(this.testProject);
         this.testProject.apply(ImmutableMap.of("plugin", LiteloaderPlugin.class));
@@ -49,16 +47,14 @@ public class ExtensionLiteLoaderVersionTest
     // Invalid version notation! The following are valid notations. BuildNumber, version, version-branch, mcversion-version-branch, and pomotion (sic)
 
     @Test
-    public void testValidVersion()
-    {
+    public void testValidVersion() {
         // version
         this.ext.setVersion("1.8.9");
         assertEquals(this.ext.getVersion(), "1.8.9");
     }
 
     @Test(expected = InvalidUserDataException.class)
-    public void testInvalidMcVersion()
-    {
+    public void testInvalidMcVersion() {
         // invalid MC version
         this.ext.setVersion("1.2.3");
     }

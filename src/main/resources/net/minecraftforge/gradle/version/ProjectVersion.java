@@ -17,12 +17,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
  * USA
  */
-package net.minecraftforge.gradle.util.json;
+package net.minecraftforge.gradle.version;
 
-import java.util.List;
-import java.util.Map;
+public class ProjectVersion {
+    public static final String VERSION = "@@PROJECT_VERSION@@";
 
-public class GLConstantGroup {
-    public Map<String, List<String>> functions;
-    public Map<String, Map<String, String>> constants;
+    public static final String BRANCH = "@@GIT_BRANCH@@";
+
+    public static final String FULL_VERSION = VERSION + "-" + BRANCH;
 }

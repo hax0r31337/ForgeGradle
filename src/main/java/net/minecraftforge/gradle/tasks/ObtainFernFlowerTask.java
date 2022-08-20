@@ -40,8 +40,7 @@ import org.gradle.api.tasks.TaskAction;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 
-public class ObtainFernFlowerTask extends CachedTask
-{
+public class ObtainFernFlowerTask extends CachedTask {
     @Input
     private DelayedString mcpUrl;
 
@@ -50,15 +49,13 @@ public class ObtainFernFlowerTask extends CachedTask
     private DelayedFile ffJar;
 
     @TaskAction
-    public void doTask() throws MalformedURLException, IOException
-    {
-        if (getProject().getGradle().getStartParameter().isOffline())
-        {
+    public void doTask() throws MalformedURLException, IOException {
+        if (getProject().getGradle().getStartParameter().isOffline()) {
             getLogger().error("Offline mode! not downloading Fernflower!");
             this.setDidWork(false);
             return;
         }
-        
+
         File ff = getFfJar();
         String url = getMcpUrl();
 
@@ -72,10 +69,8 @@ public class ObtainFernFlowerTask extends CachedTask
         final ZipInputStream zin = new ZipInputStream(connect.getInputStream());
         ZipEntry entry = null;
 
-        while ((entry = zin.getNextEntry()) != null)
-        {
-            if (Constants.lower(entry.getName()).endsWith("fernflower.jar"))
-            {
+        while ((entry = zin.getNextEntry()) != null) {
+            if (Constants.lower(entry.getName()).endsWith("fernflower.jar")) {
                 ff.getParentFile().mkdirs();
                 Files.touch(ff);
                 Files.write(ByteStreams.toByteArray(zin), ff);
@@ -87,23 +82,19 @@ public class ObtainFernFlowerTask extends CachedTask
         getLogger().info("Download and Extraction complete");
     }
 
-    public String getMcpUrl()
-    {
+    public String getMcpUrl() {
         return mcpUrl.call();
     }
-    
-    public void setMcpUrl(DelayedString mcpUrl)
-    {
+
+    public void setMcpUrl(DelayedString mcpUrl) {
         this.mcpUrl = mcpUrl;
     }
-    
-    public File getFfJar()
-    {
+
+    public File getFfJar() {
         return ffJar.call();
     }
-    
-    public void setFfJar(DelayedFile ffJar)
-    {
+
+    public void setFfJar(DelayedFile ffJar) {
         this.ffJar = ffJar;
     }
 }

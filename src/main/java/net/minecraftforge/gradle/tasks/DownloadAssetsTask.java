@@ -47,23 +47,20 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.io.Files;
 
-public class DownloadAssetsTask extends DefaultTask
-{
-    DelayedFile           assetsDir;
+public class DownloadAssetsTask extends DefaultTask {
+    DelayedFile assetsDir;
 
-    Object                assetIndex;
+    Object assetIndex;
 
-    private File          virtualRoot  = null;
-    private final File    minecraftDir = new File(Constants.getMinecraftDirectory(), "assets/objects");
+    private File virtualRoot = null;
+    private final File minecraftDir = new File(Constants.getMinecraftDirectory(), "assets/objects");
 
     private static final int MAX_TRIES = 5;
 
     @TaskAction
-    public void doTask() throws IOException, InterruptedException
-    {
+    public void doTask() throws IOException, InterruptedException {
         File outDir = new File(getAssetsDir(), "objects");
-        if (!outDir.exists() || !outDir.isDirectory())
-        {
+        if (!outDir.exists() || !outDir.isDirectory()) {
             outDir.mkdirs();
         }
 
@@ -71,158 +68,135 @@ public class DownloadAssetsTask extends DefaultTask
         AssetIndex index = JsonFactory.loadAssetsIndex(indexFile);
 
         // check virtual
-        if (index.virtual)
-        {
+        if (index.virtual) {
             virtualRoot = new File(getAssetsDir(), "virtual/" + Files.getNameWithoutExtension(indexFile.getName()));
             virtualRoot.mkdirs();
         }
-        
+
         // make thread pool
-        ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()*2);
-        
-        for (Entry<String, AssetEntry> e : index.objects.entrySet())
-        {
+        ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
+
+        for (Entry<String, AssetEntry> e : index.objects.entrySet()) {
             Asset asset = new Asset(e.getKey(), e.getValue().hash, e.getValue().size);
             executor.submit(new GetAssetTask(asset, outDir, minecraftDir, virtualRoot));
         }
-        
+
         executor.shutdown(); // complete all the tasks then shutdown.
 
         int max = (int) executor.getTaskCount(); // its gonna be somewhere around 600-700 I think
 
         // as long as the excutor isnt dead yet.
-        while (!executor.awaitTermination(1, TimeUnit.SECONDS))
-        {
+        while (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
             int done = (int) executor.getCompletedTaskCount();
             getLogger().lifecycle("Current status: {}/{}   {}%", done, max, (int) ((double) done / max * 100));
         }
     }
 
-    public File getAssetsDir()
-    {
+    public File getAssetsDir() {
         return assetsDir.call();
     }
 
-    public void setAssetsDir(DelayedFile assetsDir)
-    {
+    public void setAssetsDir(DelayedFile assetsDir) {
         this.assetsDir = assetsDir;
     }
 
-    public File getAssetsIndex()
-    {
+    public File getAssetsIndex() {
         return getProject().file(assetIndex);
     }
 
-    public void setAssetsIndex(Closure<File> index)
-    {
+    public void setAssetsIndex(Closure<File> index) {
         this.assetIndex = index;
     }
 
-    private static class Asset
-    {
+    private static class Asset {
         public final String name;
         public final String path;
         public final String hash;
-        public final long   size;
+        public final long size;
 
-        Asset(String name, String hash, long size)
-        {
+        Asset(String name, String hash, long size) {
             this.name = name;
             this.path = hash.substring(0, 2) + "/" + hash;
             this.hash = hash.toLowerCase();
             this.size = size;
         }
-    }    
-    private static boolean checkFileCorrupt(File file, long size, String expectedHash)
-    {
+    }
+
+    private static boolean checkFileCorrupt(File file, long size, String expectedHash) {
         if (!file.exists())
             return true;
-        
+
         if (file.length() != size)
             return true;
-        
+
         if (!expectedHash.equalsIgnoreCase(Constants.hash(file, "SHA1")))
             return true;
-        
+
         return false;
     }
 
-    private static class GetAssetTask implements Callable<Boolean>
-    {
+    private static class GetAssetTask implements Callable<Boolean> {
         private static final Logger LOGGER = LoggerFactory.getLogger(GetAssetTask.class);
         private final Asset asset;
         private final File assetDir, minecraftDir, virtualRoot;
-        
-        private GetAssetTask(Asset asset, File assetDir, File minecraftDir, File virtualRoot)
-        {
+
+        private GetAssetTask(Asset asset, File assetDir, File minecraftDir, File virtualRoot) {
             this.asset = asset;
             this.assetDir = assetDir;
             this.minecraftDir = minecraftDir;
             this.virtualRoot = virtualRoot;
         }
-        
+
         @Override
-        public Boolean call()
-        {
+        public Boolean call() {
             boolean worked = true;
-            
-            for (int tryNum = 1; tryNum < MAX_TRIES + 1; tryNum++)
-            {
-                try
-                {
+
+            for (int tryNum = 1; tryNum < MAX_TRIES + 1; tryNum++) {
+                try {
                     File file = new File(assetDir, asset.path);
 
-                    if (checkFileCorrupt(file, asset.size, asset.hash))
-                    {
+                    if (checkFileCorrupt(file, asset.size, asset.hash)) {
                         file.delete();
                     }
 
                     // if it exists, its good, so we dont do this stuff...
-                    if (!file.exists())
-                    {
+                    if (!file.exists()) {
                         file.getParentFile().mkdirs();
                         File localMc = new File(minecraftDir, asset.path);
-                        
-                        if (checkFileCorrupt(localMc, asset.size, asset.hash))
-                        {
+
+                        if (checkFileCorrupt(localMc, asset.size, asset.hash)) {
                             // download
                             ReadableByteChannel channel = Channels.newChannel(new URL(Constants.URL_ASSETS + "/" + asset.path).openStream());
                             FileOutputStream fout = new FileOutputStream(file);
                             FileChannel fileChannel = fout.getChannel();
-                            
+
                             fileChannel.transferFrom(channel, 0, asset.size);
-                            
+
                             channel.close();
                             fout.close();
-                        }
-                        else
-                        {
+                        } else {
                             // copy from MC
                             Constants.copyFile(localMc, file, asset.size);
                         }
                     }
-                    
-                    
-                    if (virtualRoot != null)
-                    {
+
+
+                    if (virtualRoot != null) {
                         File virtual = new File(virtualRoot, asset.name);
-                        
-                        if (checkFileCorrupt(virtual, asset.size, asset.hash))
-                        {
+
+                        if (checkFileCorrupt(virtual, asset.size, asset.hash)) {
                             virtual.delete();
                             Constants.copyFile(file, virtual);
                         }
                     }
-                    
-                }
-                catch (Exception e)
-                {
+
+                } catch (Exception e) {
                     LOGGER.error("Error downloading asset (try {}) : {}", tryNum, asset.name);
                     e.printStackTrace();
                     worked = false;
                 }
             }
-            
+
             return worked;
         }
     }

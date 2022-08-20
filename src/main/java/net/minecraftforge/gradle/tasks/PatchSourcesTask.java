@@ -49,8 +49,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
-public class PatchSourcesTask extends AbstractEditJarTask
-{
+public class PatchSourcesTask extends AbstractEditJarTask {
     /*
      * TODO: optimization plans
      * 1) doStufBefore> read all the patch files into a map as strings stored by relative path.
@@ -61,29 +60,28 @@ public class PatchSourcesTask extends AbstractEditJarTask
      */
 
     @Input
-    private int                    maxFuzz       = 0;
+    private int maxFuzz = 0;
 
     @Input
-    private int                    patchStrip    = 3;
+    private int patchStrip = 3;
 
     @Input
-    private boolean                makeRejects   = true;
+    private boolean makeRejects = true;
 
     @Input
-    private boolean                failOnError   = false;
+    private boolean failOnError = false;
 
-    private Object                 patches;
+    private Object patches;
 
     @InputFiles
-    private List<Object>           injects       = Lists.newArrayList();
+    private List<Object> injects = Lists.newArrayList();
 
     // stateful pieces of this task
-    private ContextProvider        context;
+    private ContextProvider context;
     private ArrayList<PatchedFile> loadedPatches = Lists.newArrayList();
 
     @Override
-    public void doStuffBefore() throws IOException
-    {
+    public void doStuffBefore() throws IOException {
         getLogger().info("Reading patches");
 
         // create context provider
@@ -93,34 +91,27 @@ public class PatchSourcesTask extends AbstractEditJarTask
         File patchThingy = getPatches(); // cached for the if statements
         final int fuzz = getMaxFuzz();
 
-        if (patchThingy.isDirectory())
-        {
-            for (File f : getProject().fileTree(getPatches()))
-            {
-                if (!f.exists() || f.isDirectory() || !f.getName().endsWith("patch"))
-                {
+        if (patchThingy.isDirectory()) {
+            for (File f : getProject().fileTree(getPatches())) {
+                if (!f.exists() || f.isDirectory() || !f.getName().endsWith("patch")) {
                     continue;
                 }
 
                 loadedPatches.add(new PatchedFile(f, context, fuzz));
             }
-        }
-        else if (patchThingy.getName().endsWith(".jar") || patchThingy.getName().endsWith(".zip"))
-        {
+        } else if (patchThingy.getName().endsWith(".jar") || patchThingy.getName().endsWith(".zip")) {
             // no rejects from a jar
             makeRejects = false;
 
             getProject().zipTree(patchThingy).visit(new FileVisitor() {
 
                 @Override
-                public void visitDir(FileVisitDetails arg0)
-                {
+                public void visitDir(FileVisitDetails arg0) {
                     // nope.
                 }
 
                 @Override
-                public void visitFile(FileVisitDetails details)
-                {
+                public void visitFile(FileVisitDetails details) {
                     ByteArrayOutputStream stream = new ByteArrayOutputStream();
                     details.copyTo(stream);
                     String file = new String(stream.toByteArray(), Constants.CHARSET);
@@ -129,16 +120,13 @@ public class PatchSourcesTask extends AbstractEditJarTask
 
             });
             ;
-        }
-        else
-        {
+        } else {
             throw new GradleConfigurationException("Patches (" + patchThingy.getPath() + ") is not a valid type! only zips, jars, and directories are allowed.");
         }
     }
 
     @Override
-    public void doStuffMiddle(final Map<String, String> sourceMap, final Map<String, byte[]> resourceMap) throws Exception
-    {
+    public void doStuffMiddle(final Map<String, String> sourceMap, final Map<String, byte[]> resourceMap) throws Exception {
         // Inject injects
         getLogger().info("Injecting injects (sources and resources)");
         this.inject(getInjects(), sourceMap, resourceMap);
@@ -151,19 +139,16 @@ public class PatchSourcesTask extends AbstractEditJarTask
         applyPatches();
     }
 
-    private void inject(FileCollection injects, final Map<String, String> sourceMap, final Map<String, byte[]> resourceMap) throws IOException
-    {
+    private void inject(FileCollection injects, final Map<String, String> sourceMap, final Map<String, byte[]> resourceMap) throws IOException {
         FileVisitor visitor = new FileVisitor() {
 
             @Override
-            public void visitDir(FileVisitDetails arg0)
-            {
+            public void visitDir(FileVisitDetails arg0) {
                 // nope.
             }
 
             @Override
-            public void visitFile(FileVisitDetails details)
-            {
+            public void visitFile(FileVisitDetails details) {
                 ByteArrayOutputStream stream = new ByteArrayOutputStream();
                 details.copyTo(stream);
                 // BAOS dont need to be clsoed.
@@ -171,88 +156,66 @@ public class PatchSourcesTask extends AbstractEditJarTask
                 byte[] array = stream.toByteArray();
                 String path = details.getRelativePath().getPathString().replace('\\', '/');
 
-                if (details.getName().endsWith(".java"))
-                {
+                if (details.getName().endsWith(".java")) {
                     sourceMap.put(path, new String(array, Constants.CHARSET));
-                }
-                else
-                {
+                } else {
                     resourceMap.put(path, array);
                 }
             }
 
         };
 
-        for (File inject : injects)
-        {
-            if (inject.isDirectory())
-            {
+        for (File inject : injects) {
+            if (inject.isDirectory()) {
                 getProject().fileTree(inject).visit(visitor);
-            }
-            else if (inject.getName().endsWith(".jar") || inject.getName().endsWith(".zip"))
-            {
+            } else if (inject.getName().endsWith(".jar") || inject.getName().endsWith(".zip")) {
                 getProject().zipTree(inject).visit(visitor);
-            }
-            else if (inject.getName().endsWith(".java"))
-            {
+            } else if (inject.getName().endsWith(".java")) {
                 sourceMap.put(inject.getName(), Files.toString(inject, Constants.CHARSET));
-            }
-            else
-            {
+            } else {
                 resourceMap.put(inject.getName(), Files.toByteArray(inject));
             }
         }
     }
 
-    private void applyPatches() throws IOException, PatchException
-    {
+    private void applyPatches() throws IOException, PatchException {
         boolean fuzzed = false;
         Throwable failure = null;
 
-        for (PatchedFile patch : loadedPatches)
-        {
+        for (PatchedFile patch : loadedPatches) {
             List<ContextualPatch.PatchReport> errors = patch.patch.patch(false);
-            for (ContextualPatch.PatchReport report : errors)
-            {
+            for (ContextualPatch.PatchReport report : errors) {
                 // catch failed patches
-                if (!report.getStatus().isSuccess())
-                {
+                if (!report.getStatus().isSuccess()) {
                     StringBuilder rejectBuilder = new StringBuilder();
 
                     getLogger().log(LogLevel.ERROR, "Patching failed: {} {}", context.strip(report.getTarget()), report.getFailure().getMessage());
                     // now spit the hunks
                     int failed = 0;
-                    for (ContextualPatch.HunkReport hunk : report.getHunks())
-                    {
+                    for (ContextualPatch.HunkReport hunk : report.getHunks()) {
                         // catch the failed hunks
-                        if (!hunk.getStatus().isSuccess())
-                        {
+                        if (!hunk.getStatus().isSuccess()) {
                             failed++;
                             getLogger().error("  " + hunk.getHunkID() + ": " + (hunk.getFailure() != null ? hunk.getFailure().getMessage() : "") + " @ " + hunk.getIndex());
 
-                            if (makeRejects)
-                            {
+                            if (makeRejects) {
                                 rejectBuilder.append(String.format("++++ REJECTED PATCH %d\n", hunk.getHunkID()));
                                 rejectBuilder.append(Joiner.on('\n').join(hunk.hunk.lines));
                                 rejectBuilder.append(String.format("\n++++ END PATCH\n"));
                             }
-                        }
-                        else if (hunk.getStatus() == PatchStatus.Fuzzed)
-                        {
+                        } else if (hunk.getStatus() == PatchStatus.Fuzzed) {
                             getLogger().info("  " + hunk.getHunkID() + " fuzzed " + hunk.getFuzz() + "!");
                         }
                     }
 
                     getLogger().log(LogLevel.ERROR, "  {}/{} failed", failed, report.getHunks().size());
 
-                    if (makeRejects)
-                    {
+                    if (makeRejects) {
                         File reject = patch.makeRejectFile();
-                        if (reject.exists())
-                        {
+                        if (reject.exists()) {
                             reject.delete();
                         }
-                        Files.append(rejectBuilder.toString(),reject, Charsets.UTF_8);
+                        Files.append(rejectBuilder.toString(), reject, Charsets.UTF_8);
                         getLogger().log(LogLevel.ERROR, "  Rejects written to {}", reject.getAbsolutePath());
                     }
 
@@ -260,19 +223,16 @@ public class PatchSourcesTask extends AbstractEditJarTask
                         failure = report.getFailure();
                 }
                 // catch fuzzed patches
-                else if (report.getStatus() == ContextualPatch.PatchStatus.Fuzzed)
-                {
+                else if (report.getStatus() == ContextualPatch.PatchStatus.Fuzzed) {
                     getLogger().log(LogLevel.INFO, "Patching fuzzed: {}", context.strip(report.getTarget()));
 
                     // set the boolean for later use
                     fuzzed = true;
 
                     // now spit the hunks
-                    for (ContextualPatch.HunkReport hunk : report.getHunks())
-                    {
+                    for (ContextualPatch.HunkReport hunk : report.getHunks()) {
                         // catch the failed hunks
-                        if (hunk.getStatus() == PatchStatus.Fuzzed)
-                        {
+                        if (hunk.getStatus() == PatchStatus.Fuzzed) {
                             getLogger().info("  {} fuzzed {}!", hunk.getHunkID(), hunk.getFuzz());
                         }
                     }
@@ -282,70 +242,58 @@ public class PatchSourcesTask extends AbstractEditJarTask
                 }
 
                 // sucesful patches
-                else
-                {
+                else {
                     getLogger().info("Patch succeeded: {}", context.strip(report.getTarget()));
                 }
             }
         }
 
-        if (failure != null && failOnError)
-        {
+        if (failure != null && failOnError) {
             Throwables.propagate(failure);
         }
 
-        if (fuzzed)
-        {
+        if (fuzzed) {
             getLogger().lifecycle("Patches Fuzzed!");
         }
     }
 
     // START GETTERS/SETTERS HERE
 
-    public int getMaxFuzz()
-    {
+    public int getMaxFuzz() {
         return maxFuzz;
     }
 
-    public void setMaxFuzz(int maxFuzz)
-    {
+    public void setMaxFuzz(int maxFuzz) {
         this.maxFuzz = maxFuzz;
     }
 
-    public int getPatchStrip()
-    {
+    public int getPatchStrip() {
         return patchStrip;
     }
 
-    public void setPatchStrip(int patchStrip)
-    {
+    public void setPatchStrip(int patchStrip) {
         this.patchStrip = patchStrip;
     }
 
-    public boolean isMakeRejects()
-    {
+    public boolean isMakeRejects() {
         return makeRejects;
     }
 
-    public void setMakeRejects(boolean makeRejects)
-    {
+    public void setMakeRejects(boolean makeRejects) {
         this.makeRejects = makeRejects;
     }
 
-    public boolean isFailOnError()
-    {
+    public boolean isFailOnError() {
         return failOnError;
     }
 
-    public void setFailOnError(boolean failOnError)
-    {
+    public void setFailOnError(boolean failOnError) {
         this.failOnError = failOnError;
     }
 
     @Optional
     @InputDirectory
-    private File getPatchesDir()
-    {
+    private File getPatchesDir() {
         File patch = getPatches();
         if (patch.isDirectory())
             return getPatches();
@@ -355,8 +303,7 @@ public class PatchSourcesTask extends AbstractEditJarTask
 
     @Optional
     @InputFile
-    private File getPatchesZip()
-    {
+    private File getPatchesZip() {
         File patch = getPatches();
         if (patch.isDirectory())
             return null;
@@ -364,75 +311,73 @@ public class PatchSourcesTask extends AbstractEditJarTask
             return getPatches();
     }
 
-    public File getPatches()
-    {
+    public File getPatches() {
         return getProject().file(patches);
     }
 
-    public void setPatches(Object patchDir)
-    {
+    public void setPatches(Object patchDir) {
         this.patches = patchDir;
     }
 
-    public FileCollection getInjects()
-    {
+    public FileCollection getInjects() {
         return getProject().files(injects);
     }
 
-    public void setInjects(List<Object> injects)
-    {
+    public void setInjects(List<Object> injects) {
         this.injects = injects;
     }
 
-    public void addInject(Object obj)
-    {
+    public void addInject(Object obj) {
         injects.add(obj);
     }
 
     // OVERRIDEN GARBAGE
 
     //@formatter:off
-    @Override protected boolean storeJarInRam() { return true; }
-    @Override public String asRead(String fileName, String file) { return file; }
-    @Override public void doStuffAfter() { }
+    @Override
+    protected boolean storeJarInRam() {
+        return true;
+    }
+
+    @Override
+    public String asRead(String fileName, String file) {
+        return file;
+    }
+
+    @Override
+    public void doStuffAfter() {
+    }
     //@formatter:on
 
     // START INNER CLASSES
 
-    private static class ContextProvider implements ContextualPatch.IContextProvider
-    {
+    private static class ContextProvider implements ContextualPatch.IContextProvider {
         public Map<String, String> fileMap;
 
-        private final int          stripAmmount;
+        private final int stripAmmount;
 
-        public ContextProvider(Map<String, String> fileMap, int stripAmmount)
-        {
+        public ContextProvider(Map<String, String> fileMap, int stripAmmount) {
             this.fileMap = fileMap;
             this.stripAmmount = stripAmmount;
         }
 
-        public String strip(String target)
-        {
+        public String strip(String target) {
             target = target.replace('\\', '/');
             int index = 0;
-            for (int x = 0; x < stripAmmount; x++)
-            {
+            for (int x = 0; x < stripAmmount; x++) {
                 index = target.indexOf('/', index) + 1;
             }
             return target.substring(index);
         }
 
         @Override
-        public List<String> getData(String target)
-        {
+        public List<String> getData(String target) {
             target = strip(target);
 
-            if (fileMap.containsKey(target))
-            {
+            if (fileMap.containsKey(target)) {
                 String[] lines = fileMap.get(target).split("\r\n|\r|\n");
                 List<String> ret = new ArrayList<String>();
-                for (String line : lines)
-                {
+                for (String line : lines) {
                     ret.add(line);
                 }
                 return ret;
@@ -442,34 +387,28 @@ public class PatchSourcesTask extends AbstractEditJarTask
         }
 
         @Override
-        public void setData(String target, List<String> data)
-        {
+        public void setData(String target, List<String> data) {
             target = strip(target);
             fileMap.put(target, Joiner.on(Constants.NEWLINE).join(data));
         }
     }
 
-    private static class PatchedFile
-    {
-        public final File            fileToPatch;
+    private static class PatchedFile {
+        public final File fileToPatch;
         public final ContextualPatch patch;
 
-        public PatchedFile(File file, ContextProvider provider, int maxFuzz) throws IOException
-        {
+        public PatchedFile(File file, ContextProvider provider, int maxFuzz) throws IOException {
             this.fileToPatch = file;
             this.patch = ContextualPatch.create(Files.toString(file, Charset.defaultCharset()), provider).setAccessC14N(true).setMaxFuzz(maxFuzz);
         }
 
-        public PatchedFile(String file, ContextProvider provider, int maxFuzz)
-        {
+        public PatchedFile(String file, ContextProvider provider, int maxFuzz) {
             this.fileToPatch = null;
             this.patch = ContextualPatch.create(file, provider).setAccessC14N(true).setMaxFuzz(maxFuzz);
         }
 
-        public File makeRejectFile()
-        {
-            if (fileToPatch == null)
-            {
+        public File makeRejectFile() {
+            if (fileToPatch == null) {
                 return null;
             }
 

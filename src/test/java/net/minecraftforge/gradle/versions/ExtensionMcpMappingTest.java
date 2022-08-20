@@ -21,6 +21,7 @@ package net.minecraftforge.gradle.versions;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+
 import net.minecraftforge.gradle.user.tweakers.ClientTweaker;
 import net.minecraftforge.gradle.user.tweakers.TweakerExtension;
 import net.minecraftforge.gradle.util.GradleConfigurationException;
@@ -32,30 +33,28 @@ import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
 
-public class ExtensionMcpMappingTest
-{
-    private Project          testProject;
+public class ExtensionMcpMappingTest {
+    private Project testProject;
     private TweakerExtension ext;
 
     @Before
-    public void setupProject()
-    {
+    public void setupProject() {
         this.testProject = ProjectBuilder.builder().build();
         assertNotNull(this.testProject);
         this.testProject.apply(ImmutableMap.of("plugin", ClientTweaker.class));
 
         this.ext = this.testProject.getExtensions().findByType(TweakerExtension.class);   // unlike getByType(), does not throw exception
         assertNotNull(this.ext);
-        
+
         this.ext.setTweakClass("some.thing.other"); // to ignore any issues regarding this.
     }
+
     private static final String VERSION_17 = "1.7.10";
     private static final String VERSION_18 = "1.8";
     private static final String VERSION_19 = "1.9";
 
     @Test
-    public void testValidSnapshot17()
-    {
+    public void testValidSnapshot17() {
         this.ext.setVersion(VERSION_17);
         this.ext.setMappings("snapshot_20140925");
         assertEquals(this.ext.getMappingsChannel(), "snapshot");
@@ -63,8 +62,7 @@ public class ExtensionMcpMappingTest
     }
 
     @Test
-    public void testValidStable17()
-    {
+    public void testValidStable17() {
         this.ext.setVersion(VERSION_17);
         this.ext.setMappings("stable_12");
         assertEquals(this.ext.getMappingsChannel(), "stable");
@@ -72,8 +70,7 @@ public class ExtensionMcpMappingTest
     }
 
     @Test
-    public void testValidSnapshot18()
-    {
+    public void testValidSnapshot18() {
         this.ext.setVersion(VERSION_18);
         this.ext.setMappings("snapshot_20150218");
         assertEquals(this.ext.getMappingsChannel(), "snapshot");
@@ -81,8 +78,7 @@ public class ExtensionMcpMappingTest
     }
 
     @Test
-    public void testValidStable18()
-    {
+    public void testValidStable18() {
         this.ext.setVersion(VERSION_18);
         this.ext.setMappings("stable_15");
         assertEquals(this.ext.getMappingsChannel(), "stable");
@@ -90,8 +86,7 @@ public class ExtensionMcpMappingTest
     }
 
     @Test
-    public void testValidSnapshot19()
-    {
+    public void testValidSnapshot19() {
         this.ext.setVersion(VERSION_19);
         this.ext.setMappings("snapshot_20160301");
         assertEquals(this.ext.getMappingsChannel(), "snapshot");
@@ -99,8 +94,7 @@ public class ExtensionMcpMappingTest
     }
 
     @Test
-    public void testSnapshotNodoc()
-    {
+    public void testSnapshotNodoc() {
         this.ext.setVersion(VERSION_17);
         this.ext.setMappings("snapshot_nodoc_20140925");
         assertEquals(this.ext.getMappingsChannelNoSubtype(), "snapshot");
@@ -108,8 +102,7 @@ public class ExtensionMcpMappingTest
     }
 
     @Test
-    public void testStableNodoc()
-    {
+    public void testStableNodoc() {
         this.ext.setVersion(VERSION_17);
         this.ext.setMappings("stable_nodoc_12");
         assertEquals(this.ext.getMappingsChannelNoSubtype(), "stable");
@@ -117,8 +110,7 @@ public class ExtensionMcpMappingTest
     }
 
     @Test
-    public void testOrdering()
-    {
+    public void testOrdering() {
         this.ext.setMappings("snapshot_20140925");
         this.ext.setVersion(VERSION_17);
         assertEquals(this.ext.getMappingsChannel(), "snapshot");
@@ -126,28 +118,24 @@ public class ExtensionMcpMappingTest
     }
 
     @Test(expected = GradleConfigurationException.class)
-    public void testInvalidSnapshot()
-    {
+    public void testInvalidSnapshot() {
         this.ext.setVersion(VERSION_17);
         this.ext.setMappings("snapshot_15");
     }
 
     @Test(expected = GradleConfigurationException.class)
-    public void testInvalidStable()
-    {
+    public void testInvalidStable() {
         this.ext.setVersion(VERSION_17);
         this.ext.setMappings("stable_20140925");
     }
-    
+
     @Test(expected = GradleConfigurationException.class)
-    public void testInvalidCustom()
-    {
+    public void testInvalidCustom() {
         this.ext.setVersion(VERSION_17);
         this.ext.setMappings("abrar_blahblah");
     }
-    
-    public void testValidCustom()
-    {
+
+    public void testValidCustom() {
         this.ext.setVersion(VERSION_17);
         this.ext.setMappings("abrar_custom");
         assertEquals(this.ext.getMappingsChannel(), "abrar");
